@@ -3,8 +3,10 @@ package com.jisu.auth.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order; // Import Order
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -17,20 +19,45 @@ import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
     /**
-     * 애플리케이션의 기본 보안 설정을 구성합니다.
-     * 모든 요청은 인증을 필요로 하며, 폼 기반 로그인을 사용합니다.
+     * API 엔드포인트(/api/**)를 위한 보안 필터 체인입니다.
+     * 이 필터 체인은 리소스 서버 역할을 하며, Bearer 토큰을 검증합니다.
+     * @param http
+     * @return
+     * @throws Exception
      */
     @Bean
     @Order(2) // 인가 서버 필터 체인 다음에 적용되도록 순서를 지정합니다.
-    public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) throws Exception {
         http
+                // 1. 이 필터 체인은 /api/로 시작하는 경로에만 적용됩니다.
+                .securityMatcher("/api/**")
+                // 2. 모든 /api/** 요청은 인증을 필요로 합니다.
                 .authorizeHttpRequests(authorize -> authorize
                         .anyRequest().authenticated()
                 )
-                // 기본 제공되는 폼 로그인 페이지를 사용합니다.
+                // 3. Bearer 토큰(JWT)을 검증하는 리소스 서버로 설정합니다.
+                .oauth2ResourceServer(oauth2 -> oauth2.jwt(withDefaults()))
+                // 4. API 서버는 상태가 없으므로(stateless) CSRF 보호를 비활성화합니다.
+                .csrf(AbstractHttpConfigurer::disable);
+
+        return http.build();
+    }
+
+    /**
+     * 웹 UI(로그인 페이지 등)를 위한 기본 보안 설정을 구성합니다.
+     * 이 필터 체인은 다른 필터 체인에서 처리하지 않은 나머지 모든 요청을 담당합니다.
+     */
+    @Bean
+    @Order(3) // 가장 낮은 우선순위를 가집니다.
+    public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
+        http.authorizeHttpRequests(authorize -> authorize
+                // 모든 요청은 인증을 필요로 합니다.
+                .anyRequest().authenticated())
+                // 인증되지 않은 사용자를 위한 폼 기반 로그인을 제공합니다.
                 .formLogin(withDefaults());
         return http.build();
     }
