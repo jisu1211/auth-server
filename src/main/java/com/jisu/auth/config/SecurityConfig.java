@@ -14,6 +14,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
@@ -58,7 +59,8 @@ public class SecurityConfig {
                 // 모든 요청은 인증을 필요로 합니다.
                 .anyRequest().authenticated())
                 // 인증되지 않은 사용자를 위한 폼 기반 로그인을 제공합니다.
-                .formLogin(withDefaults());
+                .formLogin(configure -> configure
+                    .successHandler(new SavedRequestAwareAuthenticationSuccessHandler()));
         return http.build();
     }
 
